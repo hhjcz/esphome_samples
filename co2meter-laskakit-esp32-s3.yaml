@@ -1,0 +1,78 @@
+# basic ESPHome config for laskakit-esp32-s3-devkit
+# https://www.laskakit.cz/laskakit-esp32-s3-devkit/
+# https://github.com/LaskaKit/ESP32-S3-DEVKit
+
+esphome:
+  name: "co2meter"
+  friendly_name: "co2meter"
+  on_boot:
+    priority: 1000
+    then:
+      - lambda: |-
+          pinMode(47, OUTPUT); // Turn on the stabiliser (for i2c and SK6812 led)
+          digitalWrite(47, HIGH);
+          delay(100);
+
+sensor:
+  - platform: scd4x
+    id: scd41_01
+    co2:
+      name: "SCD41 CO2"
+    temperature:
+      name: "SCD41 Temperature"
+    humidity:
+      name: "SCD41 Humidity"
+    update_interval: 60s
+    automatic_self_calibration: true
+    temperature_offset: 3.5
+
+  - platform: wifi_signal
+    name: "RSSI"
+    update_interval: 15min
+  - platform: uptime
+    name: "uptime"
+    update_interval: 15min
+
+light:
+  - platform: neopixelbus
+    id: LED
+    type: GRB
+    variant: SK6812
+    pin: GPIO45
+    num_leds: 1
+    name: LED
+
+i2c:
+  sda: GPIO42
+  scl: GPIO2
+  scan: True
+  id: bus_a
+
+api:
+  services:
+    - service: scd41_calibrate
+      variables:
+        co2_ppm: int
+      then:
+        - scd4x.perform_forced_calibration:
+            value: !lambda 'return co2_ppm;'
+            id: scd41_01
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+esp32:
+  variant: esp32s3
+  board: esp32-s3-devkitc-1  # https://www.laskakit.cz/laskakit-esp32-s3-devkit/ https://github.com/LaskaKit/ESP32-S3-DEVKit
+  framework:
+    type: arduino
+
+ota:
+
+logger:
+
+web_server:
+  port: 80
+
+captive_portal:
